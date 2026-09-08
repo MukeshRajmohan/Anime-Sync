@@ -24,6 +24,7 @@ def fetch_anilist_data(page, al_id):
         }
         nextAiringEpisode {
           airingAt
+          episode
         }
       }
     }
@@ -84,9 +85,15 @@ def fetch_anilist_data(page, al_id):
             
         # Convert next airing Epoch timestamp to ISO 8601 (EST/EDT)
         next_airing_iso = None
-        if data.get("nextAiringEpisode") and data.get("nextAiringEpisode").get("airingAt"):
-            airing_at = data["nextAiringEpisode"]["airingAt"]
-            next_airing_iso = datetime.fromtimestamp(airing_at, ZoneInfo("America/New_York")).isoformat()
+        next_episode = None
+        if data.get("nextAiringEpisode"):
+            if data["nextAiringEpisode"].get("airingAt"):
+                airing_at = data["nextAiringEpisode"]["airingAt"]
+                next_airing_iso = datetime.fromtimestamp(airing_at, ZoneInfo("America/New_York")).isoformat()
+            
+            # Extract the episode number
+            if data["nextAiringEpisode"].get("episode"):
+                next_episode = data["nextAiringEpisode"]["episode"]
             
         # Convert AniList 100-point scale to 10-point scale
         score = data.get("averageScore") / 10.0 if data.get("averageScore") else None
@@ -98,7 +105,8 @@ def fetch_anilist_data(page, al_id):
             "status": status,
             "season": season_str,
             "genres": data.get("genres", []),
-            "next_airing": next_airing_iso
+            "next_airing": next_airing_iso,
+            "next_episode": next_episode
         }
     except Exception as e:
         print(f"⚠️ Execution error for AL ID {al_id}: {e}")
@@ -124,7 +132,7 @@ def main():
         time.sleep(5)
         
         while has_more:
-            '''results = notion.data_sources.query(
+            results = notion.data_sources.query(
                 data_source_id=database_id,
                 filter={
                     "property": "AL ID",
@@ -133,9 +141,9 @@ def main():
                     }
                 },
                 start_cursor=next_cursor
-            )'''
+            )
 
-            results = notion.data_sources.query(
+            '''results = notion.data_sources.query(
                 data_source_id=database_id,
                 filter={
                     "and": [
@@ -164,7 +172,7 @@ def main():
                     ]
                 },
                 start_cursor=next_cursor
-            )
+            )'''
             
             for row in results["results"]:
                 al_id_prop = row["properties"].get("AL ID")
@@ -197,6 +205,8 @@ def main():
                         props["Genre"] = {"multi_select": [{"name": g} for g in data["genres"]]}
                     if data["next_airing"]:
                         props["Airing"] = {"date": {"start": data["next_airing"]}}
+                    if data.get("next_episode"):
+                        props["Next Episode"] = {"number": data["next_episode"]}
 
                     try:
                         notion.pages.update(
