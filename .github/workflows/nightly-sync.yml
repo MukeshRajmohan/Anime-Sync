@@ -3,7 +3,7 @@ name: Nightly AniList Sync
 on:
   schedule:
     # Runs at 04:00 UTC (12:00 AM EST)
-    - cron: '13 13 * * *'
+    - cron: '42 1 * * *'
   workflow_dispatch: # Allows manual triggering from the GitHub interface
 
 jobs:
